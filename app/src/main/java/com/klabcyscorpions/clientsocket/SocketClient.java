@@ -21,9 +21,10 @@ import java.net.UnknownHostException;
 public class SocketClient extends AppCompatActivity {
 
     private TextView connection_status, server_messages;
-    private Button btn_connect, btn_disconnect, btn_send;
+    private Button btn_connect, btn_send;
     private Socket socket = null;
     private boolean is_connected = false;
+    private EditText alias;
 
     private View.OnClickListener btn_connection_listener = new View.OnClickListener() {
         @Override
@@ -31,17 +32,10 @@ public class SocketClient extends AppCompatActivity {
             switch (v.getId()) {
                 case R.id.btn_connect:
                     connection_status.setText("Connecting");
-                        new MyClientTask("10.3.15.185", 4000).execute();
-                    break;
-                case R.id.btn_disconnect:
-                    connection_status.setText("Disconnected");
-                    if (socket != null) {
-                        try {
-                            socket.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
+                    Log.i("lem", alias.getText().toString());
+                    new MyClientTask("10.3.15.185", 4000).execute(alias.getText().toString());
+                    alias.setEnabled(false);
+                    btn_connect.setEnabled(false);
                     break;
             }
         }
@@ -56,8 +50,8 @@ public class SocketClient extends AppCompatActivity {
         connection_status = (TextView) findViewById(R.id.connection_status);
         server_messages = (TextView) findViewById(R.id.server_messages);
         btn_connect = (Button) findViewById(R.id.btn_connect);
-        btn_disconnect = (Button) findViewById(R.id.btn_disconnect);
         btn_send = (Button)findViewById(R.id.btn_send);
+        alias = (EditText)findViewById(R.id.textview_nickname);
 
         btn_send.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -67,10 +61,9 @@ public class SocketClient extends AppCompatActivity {
         });
 
         btn_connect.setOnClickListener(btn_connection_listener);
-        btn_disconnect.setOnClickListener(btn_connection_listener);
     }
 
-    public class MyClientTask extends AsyncTask<Void, Void, Void> {
+    public class MyClientTask extends AsyncTask<String, Void, Void> {
 
         String dstAddress;
         int dstPort;
@@ -82,10 +75,20 @@ public class SocketClient extends AppCompatActivity {
         }
 
         @Override
-        protected Void doInBackground(Void... arg0) {
+        protected Void doInBackground(String... arg0) {
             Log.i("lem", "start");
             try {
                 socket = new Socket(dstAddress, dstPort);
+                PrintStream printStream = new PrintStream(socket.getOutputStream());
+                printStream.println(arg0[0]);
+
+                SocketClient.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        connection_status.setText("Connected");
+                    }
+                });
+
 
               /*  ByteArrayOutputStream byteArrayOutputStream =
                         new ByteArrayOutputStream(1024);
@@ -119,22 +122,16 @@ public class SocketClient extends AppCompatActivity {
             return null;
         }
 
-        @Override
-        protected void onPostExecute(Void result) {
-            Log.i("lem", "post");
-            connection_status.setText(is_connected ? "Connected" : "Disconnected");
-        }
-
     }
 
     private void sendMessageToServer(){
-            Log.i("lem",((EditText)findViewById(R.id.edittext_toserver)).getText().toString());
             new Handler().post(new Runnable(){
                 @Override
                 public void run() {
                     try {
                         PrintStream printStream = new PrintStream(socket.getOutputStream());
                         printStream.println(((EditText) findViewById(R.id.edittext_toserver)).getText().toString());
+                        ((EditText) findViewById(R.id.edittext_toserver)).setText("");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
